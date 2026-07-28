@@ -37,6 +37,8 @@ spec:
               value: "32"
             - name: SESSION_TTL_SECONDS
               value: "900"
+            - name: MAX_REQUEST_BYTES
+              value: "50331648" # 48 MiB
           startupProbe:
             httpGet:
               path: /readyz
