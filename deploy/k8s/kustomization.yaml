@@ -9,8 +9,10 @@ resources:
   - service.yaml
   - ingress.yaml
   - smoke-test.yaml
+  - encryptor.yaml
+  - encryptor-smoke-test.yaml
 
 images:
   - name: docker.io/dockerboi99/he_k8s
     newName: docker.io/dockerboi99/he_k8s
-    newTag: sha-3b498d90463e
+    newTag: sha-8dfaf0fba13f
