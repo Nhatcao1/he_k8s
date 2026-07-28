@@ -42,6 +42,7 @@ deploy/k8s/                      API, ingress, and encrypted PostSync smoke Job
 argocd/application.yaml          Argo CD application for this same repository
 scripts/server-build-push.sh     build and push on the Linux server
 scripts/set_image.py             update the GitOps image tag
+scripts/bootstrap-gitops.sh      create the Argo CD Application
 docs/SERVER_RUNBOOK.md           exact server commands
 ```
 
@@ -94,8 +95,20 @@ python3 -m client.add_client \
 
 ## Server deployment
 
-Follow [the server runbook](docs/SERVER_RUNBOOK.md). Do not bootstrap Argo CD
-until the server has built an actual image and promoted its tag.
+The current desired image is:
+
+```text
+docker.io/dockerboi99/he_k8s:sha-3b498d90463e
+```
+
+With Argo CD already installed, bootstrap this repository with one command:
+
+```sh
+./scripts/bootstrap-gitops.sh
+```
+
+Argo CD reads `deploy/k8s`, creates the API, and runs the encrypted PostSync
+smoke Job. See [the server runbook](docs/SERVER_RUNBOOK.md) for status commands.
 
 ## Current constraint
 

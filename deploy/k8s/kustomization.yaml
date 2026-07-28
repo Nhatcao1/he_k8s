@@ -13,4 +13,4 @@ resources:
 images:
   - name: docker.io/dockerboi99/he_k8s
     newName: docker.io/dockerboi99/he_k8s
-    newTag: bootstrap
+    newTag: sha-3b498d90463e

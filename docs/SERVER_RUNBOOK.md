@@ -3,6 +3,22 @@
 The Linux server is the manual build machine. Docker does not need to be
 installed on the Mac for this trial.
 
+## Current first deployment
+
+The first image is already published and recorded in Git:
+
+```text
+docker.io/dockerboi99/he_k8s:sha-3b498d90463e
+```
+
+After pulling the repository, the complete GitOps bootstrap is:
+
+```sh
+./scripts/bootstrap-gitops.sh
+```
+
+The longer build and promotion flow below is for the next image.
+
 ## Requirements
 
 - Linux x86-64 server;
@@ -82,8 +98,7 @@ This is the pretend CI/GitOps split:
 Only after an actual image tag has been promoted:
 
 ```sh
-kubectl apply -f argocd/application.yaml
-kubectl -n argocd get application he-add-api-dev
+./scripts/bootstrap-gitops.sh
 ```
 
 Argo CD deploys `deploy/k8s`, waits for the API, and runs the PostSync Job. The
