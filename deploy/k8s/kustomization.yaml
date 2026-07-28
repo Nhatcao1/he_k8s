@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: he-api-dev
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - smoke-test.yaml
+
+images:
+  - name: docker.io/nhatcao1/he-k8s-api
+    newName: docker.io/nhatcao1/he-k8s-api
+    newTag: bootstrap

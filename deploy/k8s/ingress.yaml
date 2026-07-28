@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: he-add-api
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: he-api-dev.k3s.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: he-add-api
+                port:
+                  number: 8080

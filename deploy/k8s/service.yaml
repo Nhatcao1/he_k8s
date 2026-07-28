@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: he-add-api
+spec:
+  selector:
+    app: he-add-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
