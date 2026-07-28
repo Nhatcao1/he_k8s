@@ -100,7 +100,7 @@ python3 -m client.add_client \
 The current desired image is:
 
 ```text
-docker.io/dockerboi99/he_k8s:sha-3b498d90463e
+docker.io/dockerboi99/he_k8s:latest
 ```
 
 With Argo CD already installed, bootstrap this repository with one command:
@@ -111,6 +111,11 @@ With Argo CD already installed, bootstrap this repository with one command:
 
 Argo CD reads `deploy/k8s`, creates the API, and runs the encrypted PostSync
 smoke Job. See [the server runbook](docs/SERVER_RUNBOOK.md) for status commands.
+
+For this testing phase, every workload uses `imagePullPolicy: Always`. The
+server build script publishes both `sha-<commit>` and `latest`. Because changing
+the contents behind `latest` does not change Git, delete the API and encryptor
+pods after each later push so their replacements pull the new image.
 
 ## Staged trusted encryptor
 

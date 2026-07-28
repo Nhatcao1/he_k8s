@@ -21,8 +21,8 @@ spec:
         fsGroup: 10001
       containers:
         - name: encryptor
-          image: docker.io/dockerboi99/he_k8s:bootstrap
-          imagePullPolicy: IfNotPresent
+          image: docker.io/dockerboi99/he_k8s:latest
+          imagePullPolicy: Always
           command:
             - python
             - -m

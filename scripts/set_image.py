@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Set the Docker repository and immutable tag in the Kustomization."""
+"""Set the Docker repository and tag in the Kustomization."""
 
 from __future__ import annotations
 
@@ -20,8 +20,11 @@ def main() -> None:
 
     if not re.fullmatch(r"[a-z0-9][a-z0-9._/-]*", args.repository):
         parser.error("--repository is not a valid lowercase Docker repository")
-    if not re.fullmatch(r"sha-[0-9a-f]{7,40}", args.tag):
-        parser.error("--tag must have the form sha-<7-to-40 lowercase hex chars>")
+    if args.tag != "latest" and not re.fullmatch(r"sha-[0-9a-f]{7,40}", args.tag):
+        parser.error(
+            "--tag must be latest or have the form "
+            "sha-<7-to-40 lowercase hex chars>"
+        )
 
     repository = args.repository
     if not repository.startswith("docker.io/"):
