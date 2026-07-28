@@ -1,0 +1,44 @@
+# Staged with encryptor.yaml and activated after the new image is published.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: he-trusted-service-smoke-test
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: http-only-client
+          image: docker.io/dockerboi99/he_k8s:bootstrap
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - client.service_trial
+          args:
+            - --encryptor-url
+            - http://he-encryptor:8080/v1
+            - --add-url
+            - http://he-add-api:8080/v1/add
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true

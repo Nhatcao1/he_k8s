@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY api ./api
 COPY client ./client
+COPY encryptor ./encryptor
 
 RUN useradd --create-home --uid 10001 appuser
 USER appuser

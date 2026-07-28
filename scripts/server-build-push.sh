@@ -23,6 +23,7 @@ docker push "$image"
 python3 scripts/set_image.py \
   --repository "$docker_repository" \
   --tag "$image_tag"
+python3 scripts/activate_encryptor.py
 
 echo
 echo "Image pushed. Review the GitOps change:"

@@ -36,6 +36,8 @@ dockerboi99/he_k8s
 ```text
 api/app.py                       HTTP API and OpenFHE EvalAdd evaluator
 client/add_client.py             encrypt -> call API -> decrypt smoke client
+client/service_trial.py          HTTP-only trusted-service workflow client
+encryptor/app.py                 trusted encrypt/decrypt session service
 tests/                           dependency-free API tests with a fake evaluator
 Dockerfile                       Ubuntu 24.04 OpenFHE-Python image
 deploy/k8s/                      API, ingress, and encrypted PostSync smoke Job
@@ -109,6 +111,20 @@ With Argo CD already installed, bootstrap this repository with one command:
 
 Argo CD reads `deploy/k8s`, creates the API, and runs the encrypted PostSync
 smoke Job. See [the server runbook](docs/SERVER_RUNBOOK.md) for status commands.
+
+## Staged trusted encryptor
+
+The repository also contains a build-ready trusted encryptor service. It
+accepts two plaintext vectors, keeps the secret key in a short-lived in-memory
+session, and returns an evaluator bundle containing only the context and two
+ciphertexts. After the add API returns a result ciphertext, the caller sends
+that ciphertext back with the session ID for decryption.
+
+`deploy/k8s/encryptor.yaml` and its HTTP-only smoke Job are intentionally not
+active in the Kustomization until an image containing this code is built. The
+server build script activates both only after it successfully pushes that new
+image. This prevents Argo CD from trying to start the service with the previous
+image.
 
 ## Current constraint
 
