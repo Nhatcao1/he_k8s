@@ -120,7 +120,8 @@ curl http://he-api-dev.k3s.test/v1/capabilities
 ```
 
 To run the encrypted client outside K3s, use the same Docker image or an Ubuntu
-environment with `openfhe==1.5.1.0`.
+24.04 environment with `openfhe==1.5.1.0.24.4`. OpenFHE's Python package
+version suffix records the target Ubuntu release.
 
 ## Important trial limits
 

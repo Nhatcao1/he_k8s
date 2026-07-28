@@ -99,6 +99,8 @@ until the server has built an actual image and promoted its tag.
 
 ## Current constraint
 
-This first image uses the official `openfhe==1.5.1.0` Python package on Ubuntu
-24.04. It does not use HEIR yet. Once ciphertext addition works through K3s,
-HEIR-generated functions can be evaluated as a separate next trial.
+This first image uses the official `openfhe==1.5.1.0.24.4` Python package. The
+final `.24.4` selects the wheel packaged for Ubuntu 24.04; the corresponding
+OpenFHE/OpenFHE-Python release is 1.5.1. It does not use HEIR yet. Once
+ciphertext addition works through K3s, HEIR-generated functions can be
+evaluated as a separate next trial.
