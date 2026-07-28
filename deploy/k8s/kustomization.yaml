@@ -11,6 +11,6 @@ resources:
   - smoke-test.yaml
 
 images:
-  - name: docker.io/nhatcao1/he-k8s-api
-    newName: docker.io/nhatcao1/he-k8s-api
+  - name: docker.io/dockerboi99/he_k8s
+    newName: docker.io/dockerboi99/he_k8s
     newTag: bootstrap

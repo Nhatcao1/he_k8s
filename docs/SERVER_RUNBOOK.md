@@ -32,13 +32,14 @@ docker login
 The default image repository in the scripts is:
 
 ```text
-nhatcao1/he-k8s-api
+dockerboi99/he_k8s
 ```
 
-Override it if the Docker Hub namespace or repository is different:
+No environment variable is needed for the current Docker Hub repository. If it
+changes later, override the recorded default with:
 
 ```sh
-export DOCKERHUB_REPOSITORY=yourname/he-k8s-api
+export DOCKERHUB_REPOSITORY=another-name/another-repository
 ```
 
 ## 3. Build and push on the server

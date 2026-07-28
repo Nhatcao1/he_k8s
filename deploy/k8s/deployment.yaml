@@ -19,7 +19,7 @@ spec:
         fsGroup: 10001
       containers:
         - name: api
-          image: docker.io/nhatcao1/he-k8s-api:bootstrap
+          image: docker.io/dockerboi99/he_k8s:bootstrap
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

@@ -4,7 +4,7 @@ set -eu
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_dir"
 
-docker_repository=${DOCKERHUB_REPOSITORY:-nhatcao1/he-k8s-api}
+docker_repository=${DOCKERHUB_REPOSITORY:-dockerboi99/he_k8s}
 short_sha=$(git rev-parse --short=12 HEAD)
 image_tag="sha-$short_sha"
 image="$docker_repository:$image_tag"

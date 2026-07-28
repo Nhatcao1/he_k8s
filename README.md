@@ -25,6 +25,12 @@ The server acts as the manual CI machine: it clones this repository, builds the
 image, pushes it to Docker Hub, and promotes the image tag in this repository.
 Argo CD then acts as CD and reconciles the K3s cluster.
 
+The Docker Hub repository for this trial is:
+
+```text
+dockerboi99/he_k8s
+```
+
 ## Files
 
 ```text
