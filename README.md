@@ -102,12 +102,12 @@ the Argo operation result if the completed Job is already gone.
 
 ## Image promotion
 
-The included GitHub workflow currently tests, builds, pushes an immutable
-`sha-<commit>` image to Docker Hub, and commits the image tag into the Git
-manifest. Argo deploys only after that Git change.
+GitHub is currently the source-transfer path, not the image builder. The first
+CD trial therefore uses an image that has already been published and records
+that tag in `deploy/k8s/kustomization.yaml`.
 
-When GitLab becomes the source of truth, reproduce the same steps in
-`.gitlab-ci.yml` and update `argocd/application.yaml` to the GitLab repository.
+When GitLab CI is added, it should test, build and push an immutable
+`sha-<commit>` image, then commit that tag into the Git repository Argo watches.
 GitLab CI does not need Kubernetes or Argo credentials.
 
 ## Trial limits
