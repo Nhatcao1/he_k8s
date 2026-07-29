@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: he-add-smoke-test
+  name: he-encrypt-add-smoke-test
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
@@ -15,35 +15,29 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
-        fsGroup: 10001
       containers:
-        - name: encrypted-client
+        - name: http-only-client
           image: docker.io/dockerboi99/he_k8s:latest
           imagePullPolicy: Always
           command:
             - python
             - -m
-            - client.add_client
+            - client.service_trial
           args:
-            - --url
+            - --encryptor-url
+            - http://he-encryptor:8080/v1
+            - --add-url
             - http://he-add-api:8080/v1/add
           resources:
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 50m
+              memory: 64Mi
             limits:
-              cpu: "2"
-              memory: 4Gi
+              cpu: 500m
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
-          volumeMounts:
-            - name: temporary-files
-              mountPath: /tmp
-      volumes:
-        - name: temporary-files
-          emptyDir:
-            sizeLimit: 256Mi

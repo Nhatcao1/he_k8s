@@ -1,140 +1,121 @@
-# HE ciphertext-add API on K3s
+# Minimal HE add CD trial
 
-This repository is one small trial:
-
-```text
-trusted Python client
-  -> encrypt vector A and vector B
-  -> POST context + ciphertext A + ciphertext B
-  -> API runs OpenFHE EvalAdd(ciphertext A, ciphertext B)
-  -> API returns a ciphertext
-  -> client decrypts and checks A + B
-```
-
-The API never receives the secret key. This is not benchmark code and it is
-not yet a production service.
-
-For this trial the same GitHub repository contains:
-
-- the API and trusted client;
-- the Dockerfile;
-- the K3s manifests;
-- the Argo CD Application.
-
-The server acts as the manual CI machine: it clones this repository, builds the
-image, pushes it to Docker Hub, and promotes the image tag in this repository.
-Argo CD then acts as CD and reconciles the K3s cluster.
-
-The Docker Hub repository for this trial is:
+This repository is a small continuous-delivery trial for Rancher-managed
+Kubernetes staging. It intentionally deploys only two services and one
+end-to-end test:
 
 ```text
-dockerboi99/he_k8s
+he-encryptor
+  -> encrypt two plaintext vectors and retain the secret key in memory
+he-add-api
+  -> evaluate OpenFHE ciphertext addition without receiving the secret key
+he-encrypt-add-smoke-test
+  -> encrypt -> add -> decrypt -> verify the numerical sum
 ```
 
-## Files
+It is trial code, not a production cryptography service.
+
+## Components
 
 ```text
-api/app.py                       HTTP API and OpenFHE EvalAdd evaluator
-client/add_client.py             encrypt -> call API -> decrypt smoke client
-client/service_trial.py          HTTP-only trusted-service workflow client
-encryptor/app.py                 trusted encrypt/decrypt session service
-tests/                           dependency-free API tests with a fake evaluator
-Dockerfile                       Ubuntu 24.04 OpenFHE-Python image
-deploy/k8s/                      API, ingress, and encrypted PostSync smoke Job
-argocd/application.yaml          Argo CD application for this same repository
-scripts/server-build-push.sh     build and push on the Linux server
-scripts/set_image.py             update the GitOps image tag
-scripts/bootstrap-gitops.sh      create the Argo CD Application
-docs/SERVER_RUNBOOK.md           exact server commands
+api/app.py                         ciphertext-add HTTP evaluator
+encryptor/app.py                   trusted encrypt/decrypt session service
+client/service_trial.py            HTTP-only end-to-end verification client
+deploy/k8s/he-add-api.yaml         add Deployment and Service
+deploy/k8s/he-encryptor.yaml       encryptor Deployment and Service
+deploy/k8s/e2e-smoke-test.yaml     Argo CD PostSync verification Job
+deploy/k8s/kustomization.yaml      namespace and image selection
+argocd/application.yaml            single Argo CD Application
+docs/RANCHER_STAGING_ARGOCD_HANDOFF.md
 ```
 
-## API
+There is no gateway, external Ingress, client SDK, or direct server build in
+this CD trial. The smoke test runs inside the cluster.
 
-```text
-GET  /healthz
-GET  /readyz
-GET  /v1/capabilities
-POST /v1/add
-```
+## End-to-end operation
 
-`POST /v1/add` accepts JSON containing three base64-encoded OpenFHE binary
-artifacts:
+`client.service_trial` performs:
 
-```json
-{
-  "context": "...",
-  "ciphertext_a": "...",
-  "ciphertext_b": "..."
-}
-```
+1. `POST /v1/encrypt-pair` to `he-encryptor`;
+2. `POST /v1/add` to `he-add-api`;
+3. `POST /v1/sessions/{id}/decrypt` to `he-encryptor`;
+4. comparison of the decrypted values with `left + right`.
 
-It returns:
+The Job exits non-zero if an HTTP request fails, the response shape is wrong,
+or the CKKS error exceeds the configured tolerance. That makes a failed
+cryptographic path fail the Argo PostSync operation.
 
-```json
-{
-  "ciphertext": "..."
-}
-```
+## Local dependency-free tests
 
-Only ciphertext addition is supported. Addition does not require the client to
-upload a public key, multiplication key, or rotation key.
-
-## Local tests without OpenFHE
-
-The API contract tests inject a fake evaluator, so they run without Docker or
+The unit and HTTP contract tests use fake evaluators and do not require
 OpenFHE:
 
-```sh
+```bash
 python3 -m unittest discover -s tests -v
 ```
 
-The actual cryptographic smoke test runs in the Linux image:
+The real OpenFHE test runs inside the published Linux image and Kubernetes Job.
 
-```sh
-python3 -m client.add_client \
-  --url http://127.0.0.1:8080/v1/add
-```
+## Kubernetes layout
 
-## Server deployment
-
-The current desired image is:
+The workload namespace is:
 
 ```text
-docker.io/dockerboi99/he_k8s:latest
+datalake-he
 ```
 
-With Argo CD already installed, bootstrap this repository with one command:
+Argo CD itself remains installed in its own `argocd` namespace. The single
+Application deploys `deploy/k8s` into `datalake-he` with automated sync,
+pruning, and self-healing enabled.
 
-```sh
-./scripts/bootstrap-gitops.sh
+For a transparent Docker Hub mirror, keep:
+
+```text
+docker.io/dockerboi99/he_k8s
 ```
 
-Argo CD reads `deploy/k8s`, creates the API, and runs the encrypted PostSync
-smoke Job. See [the server runbook](docs/SERVER_RUNBOOK.md) for status commands.
+If staging requires an explicit proxy address, update the image repository in
+`deploy/k8s/kustomization.yaml` before publishing the Git commit. Do not edit
+manifests on the staging server.
 
-For this testing phase, every workload uses `imagePullPolicy: Always`. The
-server build script publishes both `sha-<commit>` and `latest`. Because changing
-the contents behind `latest` does not change Git, delete the API and encryptor
-pods after each later push so their replacements pull the new image.
+## One-time Argo bootstrap
 
-## Staged trusted encryptor
+After confirming the Rancher staging context and repository access:
 
-The repository also contains a build-ready trusted encryptor service. It
-accepts two plaintext vectors, keeps the secret key in a short-lived in-memory
-session, and returns an evaluator bundle containing only the context and two
-ciphertexts. After the add API returns a result ciphertext, the caller sends
-that ciphertext back with the session ID for decryption.
+```bash
+kubectl apply -f argocd/application.yaml
+kubectl -n argocd get applications.argoproj.io datalake-he
+```
 
-`deploy/k8s/encryptor.yaml` and its HTTP-only smoke Job are intentionally not
-active in the Kustomization until an image containing this code is built. The
-server build script activates both only after it successfully pushes that new
-image. This prevents Argo CD from trying to start the service with the previous
-image.
+Do not apply `deploy/k8s` directly. Argo CD owns those resources.
 
-## Current constraint
+Verify:
 
-This first image uses the official `openfhe==1.5.1.0.24.4` Python package. The
-final `.24.4` selects the wheel packaged for Ubuntu 24.04; the corresponding
-OpenFHE/OpenFHE-Python release is 1.5.1. It does not use HEIR yet. Once
-ciphertext addition works through K3s, HEIR-generated functions can be
-evaluated as a separate next trial.
+```bash
+kubectl -n datalake-he get deploy,pod,service,job
+kubectl -n datalake-he rollout status deployment/he-add-api --timeout=5m
+kubectl -n datalake-he rollout status deployment/he-encryptor --timeout=5m
+```
+
+Argo may delete a successful PostSync Job according to its hook policy. Check
+the Argo operation result if the completed Job is already gone.
+
+## Image promotion
+
+The included GitHub workflow currently tests, builds, pushes an immutable
+`sha-<commit>` image to Docker Hub, and commits the image tag into the Git
+manifest. Argo deploys only after that Git change.
+
+When GitLab becomes the source of truth, reproduce the same steps in
+`.gitlab-ci.yml` and update `argocd/application.yaml` to the GitLab repository.
+GitLab CI does not need Kubernetes or Argo credentials.
+
+## Trial limits
+
+- one replica per service;
+- no external Ingress, authentication, or TLS;
+- secret keys and sessions exist in encryptor memory;
+- sessions disappear when the encryptor restarts;
+- only ciphertext addition is evaluated;
+- CKKS results are approximate;
+- use immutable image tags for repeatable deployment and rollback.

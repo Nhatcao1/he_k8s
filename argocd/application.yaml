@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: he-add-api-dev
+  name: datalake-he
   namespace: argocd
 spec:
   project: default
@@ -11,7 +11,7 @@ spec:
     path: deploy/k8s
   destination:
     server: https://kubernetes.default.svc
-    namespace: he-api-dev
+    namespace: datalake-he
   syncPolicy:
     automated:
       enabled: true
