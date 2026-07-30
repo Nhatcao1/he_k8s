@@ -64,27 +64,32 @@ The workload namespace is:
 datalake-he
 ```
 
-Argo CD itself remains installed in its own `argocd` namespace. The single
-Application deploys `deploy/k8s` into `datalake-he` with automated sync,
-pruning, and self-healing enabled.
+The Application resource and workloads use namespace `datalake-he`. The
+cluster's Argo CD installation may remain in a different control-plane
+namespace. The `datalake` AppProject and Argo CD installation must allow
+Applications from `datalake-he`.
 
-For a transparent Docker Hub mirror, keep:
+The trial pulls through the staging registry proxy:
 
 ```text
-docker.io/dockerboi99/he_k8s
+hub.vtcc.vn:8989/dockerboi99/he_k8s:latest
 ```
 
-If staging requires an explicit proxy address, update the image repository in
-`deploy/k8s/kustomization.yaml` before publishing the Git commit. Do not edit
-manifests on the staging server.
+Kustomize replaces the base Docker Hub image name with that explicit registry
+address. Update `newName` and `newTag` in `deploy/k8s/kustomization.yaml`
+before publishing a changed image. Do not edit workload manifests on staging.
 
 ## One-time Argo bootstrap
 
 After confirming the Rancher staging context and repository access:
 
 ```bash
-kubectl apply -f argocd/application.yaml
-kubectl -n argocd get applications.argoproj.io datalake-he
+kubectl --insecure-skip-tls-verify=true create namespace datalake-he \
+  --dry-run=client -o yaml |
+  kubectl --insecure-skip-tls-verify=true apply -f -
+kubectl --insecure-skip-tls-verify=true apply -f argocd/application.yaml
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  get applications.argoproj.io datalake-he
 ```
 
 Do not apply `deploy/k8s` directly. Argo CD owns those resources.
@@ -92,9 +97,12 @@ Do not apply `deploy/k8s` directly. Argo CD owns those resources.
 Verify:
 
 ```bash
-kubectl -n datalake-he get deploy,pod,service,job
-kubectl -n datalake-he rollout status deployment/he-add-api --timeout=5m
-kubectl -n datalake-he rollout status deployment/he-encryptor --timeout=5m
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  get deploy,pod,service,job
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  rollout status deployment/he-add-api --timeout=5m
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  rollout status deployment/he-encryptor --timeout=5m
 ```
 
 Argo may delete a successful PostSync Job according to its hook policy. Check

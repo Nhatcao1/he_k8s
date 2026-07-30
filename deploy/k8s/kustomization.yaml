@@ -11,5 +11,5 @@ resources:
 
 images:
   - name: docker.io/dockerboi99/he_k8s
-    newName: docker.io/dockerboi99/he_k8s
+    newName: hub.vtcc.vn:8989/dockerboi99/he_k8s
     newTag: latest

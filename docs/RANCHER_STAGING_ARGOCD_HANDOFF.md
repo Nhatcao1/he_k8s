@@ -1,76 +1,62 @@
 # Rancher staging Argo CD handoff
 
-The staging server only pulls published code, applies the Argo CD Application,
-and checks status. Do not edit, build, commit, or push from the staging server.
+The staging server only pulls published code, creates the Argo CD Application,
+and checks status. Do not edit, build, commit, or push from staging.
 
-## Fill these values
+## Values already configured in Git
 
 ```text
-GIT_REPO=<published-repository-url>
+GIT_REPO=http://source.cyberspace.vn/nhatcm1/he_k8s.git
 BRANCH=main
+ARGO_PROJECT=datalake
+APPLICATION_NAMESPACE=datalake-he
+WORKLOAD_NAMESPACE=datalake-he
+MANIFEST_PATH=deploy/k8s
+REGISTRY_PROXY=hub.vtcc.vn:8989
+REGISTRY_MODE=explicit-address
+EXISTING_IMAGE=hub.vtcc.vn:8989/dockerboi99/he_k8s:latest
+```
+
+Only this value must be selected on the staging server:
+
+```text
 RANCHER_CONTEXT=<exact-staging-context>
-REGISTRY_PROXY=<host>:<port>
-REGISTRY_MODE=<transparent-mirror|explicit-address>
-EXISTING_IMAGE_TAG=<published-tag>
 ```
 
-The workload namespace and Argo Application name are both:
+Do not change `MANIFEST_PATH` to `argocd`. The `argocd` directory contains the
+bootstrap Application; the Deployments, Services, and smoke-test Job are under
+`deploy/k8s`.
 
-```text
-datalake-he
-```
+## What applying the Application does
 
-Argo CD remains in namespace `argocd`.
+`kubectl apply -f argocd/application.yaml` creates or updates one Kubernetes
+custom resource. Argo CD then sees that resource and, because automated sync is
+enabled, reads the Git repository, renders `deploy/k8s`, and creates the HE
+Deployments, Services, Pods, and PostSync test Job.
 
-## Required for the first deploy-only test
+The chain only proceeds when all of these are true:
 
-- The image referenced by `deploy/k8s/kustomization.yaml` already exists.
-- Rancher staging can pull it through the Docker Hub proxy without credentials.
-- Argo can read the published Git repository.
-- `kubectl` has the correct staging context and permission.
+- Argo CD can read the Git repository;
+- AppProject `datalake` permits that repository and destination;
+- Argo CD accepts Applications from namespace `datalake-he`;
+- AppProject `datalake.spec.sourceNamespaces` includes `datalake-he`;
+- the staging cluster can pull the configured image.
 
-Not required yet:
+The Application resource is in `datalake-he`; the Argo CD controllers can be
+installed in another namespace. No Argo username or password is stored in this
+repository or passed to `kubectl`. Argo UI credentials are only for logging
+into the UI/CLI. Repository credentials, if required, are configured once in
+Argo CD as a read-only repository connection.
 
-- GitLab image-build CI;
-- a registry pull Secret;
-- Kubernetes or Argo credentials in CI;
-- an Argo webhook.
+## Exact staging-server commands
 
-## Important Git source rule
+Every command below skips kube-apiserver TLS verification because that is
+required by this staging setup.
 
-`argocd/application.yaml` currently identifies the repository Argo watches.
-If GitLab must trigger deployment, its `repoURL` must be the GitLab repository
-ending in `.git`. Change and commit that on the development machine before the
-server pulls it.
-
-For a private GitLab repository, connect Argo with a read-only GitLab deploy
-token scoped only to:
-
-```text
-read_repository
-```
-
-In the Argo UI, enter:
-
-```text
-Settings -> Repositories -> Connect Repo -> HTTPS
-Repository URL: https://gitlab.com/<group-or-namespace>/he_k8s.git
-Username:       <deploy-token-username>
-Password:       <deploy-token-value>
-```
-
-Confirm the repository connection reports `Successful` before applying the
-Application.
-
-The server user's GitLab login does not authenticate the in-cluster Argo
-service. For a public repository, no repository token is required.
-
-## Exact server commands
-
-### 1. Pull published code
+### 1. Pull the published repository
 
 ```bash
-git clone <published-repository-url>
+git clone http://source.cyberspace.vn/nhatcm1/he_k8s.git
 cd he_k8s
 git checkout main
 git pull --ff-only
@@ -80,87 +66,126 @@ git rev-parse HEAD
 
 Stop unless `git status --short` is empty.
 
-### 2. Select Rancher staging
+### 2. Select and verify Rancher staging
 
 ```bash
-kubectl config get-contexts
-kubectl config use-context '<exact-staging-context>'
-kubectl config current-context
-kubectl cluster-info
-kubectl get nodes -o wide
-kubectl get crd applications.argoproj.io
-kubectl -n argocd get deploy,pod
-kubectl auth can-i create applications.argoproj.io -n argocd
+kubectl --insecure-skip-tls-verify=true config get-contexts
+kubectl --insecure-skip-tls-verify=true config use-context '<exact-staging-context>'
+kubectl --insecure-skip-tls-verify=true config current-context
+kubectl --insecure-skip-tls-verify=true cluster-info
+kubectl --insecure-skip-tls-verify=true get nodes -o wide
+kubectl --insecure-skip-tls-verify=true get crd applications.argoproj.io
+kubectl --insecure-skip-tls-verify=true get appprojects.argoproj.io -A
+kubectl --insecure-skip-tls-verify=true auth can-i create \
+  applications.argoproj.io -n datalake-he
 ```
 
-Stop unless the current context is exactly `RANCHER_CONTEXT`, the nodes belong
-to staging, the Argo CRD exists, and the permission check returns `yes`.
+Stop unless the current context is the intended staging context, the nodes are
+staging nodes, the Argo Application CRD exists, AppProject `datalake` exists,
+and the permission check returns `yes`.
 
-### 3. Verify the proxy pull
-
-Choose the form required by Rancher:
+Because this Application is outside the Argo CD control-plane namespace, the
+server's Argo administrator must also confirm:
 
 ```text
-transparent mirror -> docker.io/dockerboi99/he_k8s:<tag>
-explicit address   -> <host>:<port>/dockerboi99/he_k8s:<tag>
+argocd-application-controller --application-namespaces includes datalake-he
+argocd-server                 --application-namespaces includes datalake-he
+AppProject datalake           spec.sourceNamespaces includes datalake-he
 ```
 
-Then run:
+If those settings are not enabled, do not move the Application silently.
+Ask the Argo administrator which control-plane namespace must hold it.
+
+### 3. Verify the exact image can be pulled
 
 ```bash
-kubectl create namespace datalake-he --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n datalake-he delete pod registry-pull-check --ignore-not-found
-kubectl -n datalake-he run registry-pull-check \
-  --image='<correct-image-repository>:<existing-tag>' \
+kubectl --insecure-skip-tls-verify=true create namespace datalake-he \
+  --dry-run=client -o yaml |
+  kubectl --insecure-skip-tls-verify=true apply -f -
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  delete pod registry-pull-check --ignore-not-found
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  run registry-pull-check \
+  --image='hub.vtcc.vn:8989/dockerboi99/he_k8s:latest' \
   --restart=Never \
   --command -- python -c "print('registry-pull-ok')"
-kubectl -n datalake-he wait pod/registry-pull-check \
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  wait pod/registry-pull-check \
   --for=jsonpath='{.status.phase}'=Succeeded \
   --timeout=5m
-kubectl -n datalake-he logs registry-pull-check
-kubectl -n datalake-he delete pod registry-pull-check
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  logs registry-pull-check
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  delete pod registry-pull-check
 ```
 
 For `ImagePullBackOff`, capture:
 
 ```bash
-kubectl -n datalake-he describe pod registry-pull-check
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  describe pod registry-pull-check
 ```
 
-Report the proxy, TLS, path, or tag problem. Do not create registry credentials
-for this staging proxy.
+Do not create registry credentials for this credential-free staging proxy.
 
-### 4. Apply the single Argo Application
-
-Inspect without editing:
+### 4. Inspect and apply the Application
 
 ```bash
 test -f argocd/application.yaml
 sed -n '1,80p' argocd/application.yaml
 git status --short
-kubectl config current-context
+kubectl --insecure-skip-tls-verify=true config current-context
 ```
 
-Confirm the Git URL, branch, `deploy/k8s` path, clean Git status, destination
-namespace `datalake-he`, and staging context. Then run exactly:
+Confirm these exact fields:
 
-```bash
-kubectl apply -f argocd/application.yaml
-kubectl -n argocd get applications.argoproj.io datalake-he -o wide
-kubectl -n argocd describe applications.argoproj.io datalake-he
+```text
+repoURL:        http://source.cyberspace.vn/nhatcm1/he_k8s.git
+targetRevision: main
+path:           deploy/k8s
+project:        datalake
+metadata ns:    datalake-he
+destination ns: datalake-he
 ```
 
-Do not run `kubectl apply -k deploy/k8s`. Argo must own the workload resources.
-
-### 5. Verify the CD result
+Then apply:
 
 ```bash
-kubectl -n argocd get applications.argoproj.io datalake-he \
+kubectl --insecure-skip-tls-verify=true apply \
+  -f argocd/application.yaml
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  get applications.argoproj.io datalake-he -o wide
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  describe applications.argoproj.io datalake-he
+```
+
+Do not run `kubectl apply -k deploy/k8s`. Argo CD owns those resources.
+
+### 5. Verify Argo created the workloads
+
+```bash
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  get applications.argoproj.io datalake-he \
   -o jsonpath='{.status.sync.status}{" "}{.status.health.status}{"\n"}'
-kubectl -n datalake-he get deploy,pod,service,job
-kubectl -n datalake-he get events --sort-by=.lastTimestamp
-kubectl -n datalake-he rollout status deployment/he-add-api --timeout=5m
-kubectl -n datalake-he rollout status deployment/he-encryptor --timeout=5m
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  get deploy,pod,service,job
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  get events --sort-by=.lastTimestamp
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  rollout status deployment/he-add-api --timeout=5m
+
+kubectl --insecure-skip-tls-verify=true -n datalake-he \
+  rollout status deployment/he-encryptor --timeout=5m
 ```
 
 Expected:
@@ -173,11 +198,14 @@ he-encryptor rollout: successful
 he-encrypt-add-smoke-test: successful
 ```
 
-Argo may delete the successful PostSync Job. If so, use the Application
-operation result and events as the evidence.
+Argo may delete a successful PostSync Job according to its hook policy. If it
+is already gone, use the Application operation result and events as evidence.
 
 ## Later GitLab automation
 
-The pipeline should test, build and push `sha-<commit>`, update
-`deploy/k8s/kustomization.yaml`, and commit that immutable tag to the GitLab
-repository Argo watches. CI still needs no Rancher or Argo credentials.
+No special GitLab build pipeline is needed for this first deploy-only test.
+Argo polls Git and automatically syncs commits that change `deploy/k8s`.
+
+Later, CI should test, build and push an immutable `sha-<commit>` image, update
+`newTag` in `deploy/k8s/kustomization.yaml`, and commit that tag to this Git
+repository. CI still needs no Rancher, Kubernetes, or Argo credentials.
