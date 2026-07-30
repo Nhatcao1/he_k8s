@@ -36,6 +36,7 @@ Deployments, Services, Pods, and PostSync test Job.
 
 The chain only proceeds when all of these are true:
 
+- namespace `datalake-he` already exists;
 - Argo CD can read the Git repository;
 - AppProject `datalake` permits that repository and destination;
 - Argo CD accepts Applications from namespace `datalake-he`;
@@ -47,6 +48,10 @@ installed in another namespace. No Argo username or password is stored in this
 repository or passed to `kubectl`. Argo UI credentials are only for logging
 into the UI/CLI. Repository credentials, if required, are configured once in
 Argo CD as a read-only repository connection.
+
+This repository never creates, updates, or deletes the `datalake-he`
+Namespace object. Do not add `namespace.yaml` or `CreateNamespace=true`; the
+staging user does not have namespace-management permission.
 
 ## Exact staging-server commands
 
@@ -76,6 +81,7 @@ kubectl --insecure-skip-tls-verify=true cluster-info
 kubectl --insecure-skip-tls-verify=true get nodes -o wide
 kubectl --insecure-skip-tls-verify=true get crd applications.argoproj.io
 kubectl --insecure-skip-tls-verify=true get appprojects.argoproj.io -A
+kubectl --insecure-skip-tls-verify=true get namespace datalake-he
 kubectl --insecure-skip-tls-verify=true auth can-i create \
   applications.argoproj.io -n datalake-he
 ```
@@ -99,10 +105,6 @@ Ask the Argo administrator which control-plane namespace must hold it.
 ### 3. Verify the exact image can be pulled
 
 ```bash
-kubectl --insecure-skip-tls-verify=true create namespace datalake-he \
-  --dry-run=client -o yaml |
-  kubectl --insecure-skip-tls-verify=true apply -f -
-
 kubectl --insecure-skip-tls-verify=true -n datalake-he \
   delete pod registry-pull-check --ignore-not-found
 

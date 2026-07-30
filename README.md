@@ -69,6 +69,9 @@ cluster's Argo CD installation may remain in a different control-plane
 namespace. The `datalake` AppProject and Argo CD installation must allow
 Applications from `datalake-he`.
 
+The repository does not create or manage that namespace. `datalake-he` must
+already exist and be administered by the staging platform team.
+
 The trial pulls through the staging registry proxy:
 
 ```text
@@ -84,9 +87,7 @@ before publishing a changed image. Do not edit workload manifests on staging.
 After confirming the Rancher staging context and repository access:
 
 ```bash
-kubectl --insecure-skip-tls-verify=true create namespace datalake-he \
-  --dry-run=client -o yaml |
-  kubectl --insecure-skip-tls-verify=true apply -f -
+kubectl --insecure-skip-tls-verify=true get namespace datalake-he
 kubectl --insecure-skip-tls-verify=true apply -f argocd/application.yaml
 kubectl --insecure-skip-tls-verify=true -n datalake-he \
   get applications.argoproj.io datalake-he

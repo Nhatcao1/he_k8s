@@ -4,7 +4,6 @@ kind: Kustomization
 namespace: datalake-he
 
 resources:
-  - namespace.yaml
   - he-add-api.yaml
   - he-encryptor.yaml
   - e2e-smoke-test.yaml
