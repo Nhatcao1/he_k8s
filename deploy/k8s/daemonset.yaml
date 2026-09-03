@@ -1,12 +1,11 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: network-tools
   labels:
     app: network-tools
     environment: stag
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: network-tools
@@ -16,10 +15,23 @@ spec:
         app: network-tools
         environment: stag
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations:
+        - operator: Exists
       containers:
         - name: network-tools
           image: docker.io/dockerboi99/he_k8s:latest
           imagePullPolicy: Always
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           resources:
             requests:
               cpu: 10m
