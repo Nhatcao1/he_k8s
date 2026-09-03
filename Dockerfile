@@ -11,6 +11,10 @@ RUN apk add --no-cache \
       netcat-openbsd \
       openssl \
       tcpdump \
-      traceroute
+      traceroute \
+    && addgroup -S -g 10001 toolbox \
+    && adduser -S -D -H -u 10001 -G toolbox toolbox
+
+USER 10001:10001
 
 CMD ["sh", "-c", "while true; do sleep 3600; done"]

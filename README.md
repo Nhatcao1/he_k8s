@@ -3,14 +3,16 @@
 This repository deploys one network troubleshooting pod through Argo CD using a
 standard Kubernetes Deployment. The image includes `nc`, `curl`, `dig`,
 `nslookup`, `ping`, `ip`, `ss`, `telnet`, `traceroute`, `openssl`, `jq`, and
-`tcpdump`.
+`tcpdump`. The container runs as non-root UID/GID `10001` for restricted
+Kubernetes environments.
 
 ## Automatic GitLab build and Argo CD deployment
 
 Pushing this repository to the GitLab default branch runs `.gitlab-ci.yml`:
 
 1. GitLab CI builds the Dockerfile.
-2. It pushes `docker.io/dockerboi99/he_k8s:sha-<commit>` to Docker Hub.
+2. It pushes `docker.io/dockerboi99/he_k8s:sha-<commit>` and `latest` to Docker
+   Hub.
 3. It writes that immutable image into `deploy/k8s/deployment.yaml` and commits
    the change to GitLab.
 4. The existing Argo CD application notices the manifest commit and deploys it.

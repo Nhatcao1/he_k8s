@@ -16,10 +16,17 @@ spec:
         app: network-tools
         environment: stag
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       containers:
         - name: network-tools
           image: docker.io/dockerboi99/he_k8s:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           env:
             - name: NODE_NAME
               valueFrom:

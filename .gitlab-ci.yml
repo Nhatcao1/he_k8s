@@ -31,8 +31,9 @@ build-image:
     - . "./environments/${ACTIVE_DEPLOY_ENV}.env"
     - IMAGE_TAG="sha-${CI_COMMIT_SHORT_SHA}"
     - IMAGE_REF="${TOOLBOX_IMAGE}:${IMAGE_TAG}"
-    - docker build --pull --tag "$IMAGE_REF" .
+    - docker build --pull --tag "$IMAGE_REF" --tag "${TOOLBOX_IMAGE}:latest" .
     - docker push "$IMAGE_REF"
+    - docker push "${TOOLBOX_IMAGE}:latest"
     - echo "IMAGE_REF=$IMAGE_REF" > build.env
     - echo "DEPLOY_MANIFEST=$DEPLOY_MANIFEST" >> build.env
     - echo "ACTIVE_DEPLOY_ENV=$ACTIVE_DEPLOY_ENV" >> build.env
