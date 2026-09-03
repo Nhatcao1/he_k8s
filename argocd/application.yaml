@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Nhatcao1/he_k8s.git
+    repoURL: http://source.cyberspace.vn/nhatcm1/he_k8s.git
     targetRevision: main
     path: deploy/k8s
     directory:

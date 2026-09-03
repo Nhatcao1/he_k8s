@@ -1,0 +1,66 @@
+stages:
+  - build
+  - promote
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  TOOLBOX_IMAGE: docker.io/dockerboi99/he_k8s
+
+build-image:
+  stage: build
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .dockerignore
+        - .gitlab-ci.yml
+        - Dockerfile
+  before_script:
+    - test -n "$DOCKERHUB_USERNAME"
+    - test -n "$DOCKERHUB_TOKEN"
+    - echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+  script:
+    - IMAGE_TAG="sha-${CI_COMMIT_SHORT_SHA}"
+    - IMAGE_REF="${TOOLBOX_IMAGE}:${IMAGE_TAG}"
+    - docker build --pull --tag "$IMAGE_REF" .
+    - docker push "$IMAGE_REF"
+    - echo "IMAGE_REF=$IMAGE_REF" > build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+
+promote-image:
+  stage: promote
+  image: alpine:3.22
+  needs:
+    - job: build-image
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - .dockerignore
+        - .gitlab-ci.yml
+        - Dockerfile
+  before_script:
+    - apk add --no-cache git
+  script:
+    - 'sed -i "s|^[[:space:]]*image: .*|          image: ${IMAGE_REF}|" deploy/k8s/deployment.yaml'
+    - git config user.name "GitLab CI"
+    - git config user.email "gitlab-ci@${CI_SERVER_HOST}"
+    - git add deploy/k8s/deployment.yaml
+    - |
+      if git diff --cached --quiet; then
+        echo "Deployment already uses ${IMAGE_REF}"
+        exit 0
+      fi
+    - git commit -m "Deploy ${IMAGE_REF} [skip ci]"
+    - |
+      if [ -n "$GITOPS_PUSH_TOKEN" ]; then
+        git remote set-url origin "https://oauth2:${GITOPS_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      else
+        git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      fi
+    - git push origin "HEAD:${CI_DEFAULT_BRANCH}"
