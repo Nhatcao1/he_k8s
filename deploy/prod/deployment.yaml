@@ -4,7 +4,7 @@ metadata:
   name: network-tools
   labels:
     app: network-tools
-    environment: stag
+    environment: prod
 spec:
   replicas: 1
   selector:
@@ -14,7 +14,7 @@ spec:
     metadata:
       labels:
         app: network-tools
-        environment: stag
+        environment: prod
     spec:
       containers:
         - name: network-tools

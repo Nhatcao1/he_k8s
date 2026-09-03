@@ -14,6 +14,29 @@ Pushing this repository to the GitLab default branch runs `.gitlab-ci.yml`:
    the change to GitLab.
 4. The existing Argo CD application notices the manifest commit and deploys it.
 
+## Select staging or production
+
+Environment settings are separate:
+
+```text
+deploy.env                 default environment selector
+environments/stag.env      staging image and manifest settings
+environments/prod.env      production image and manifest settings
+deploy/k8s/                staging plain YAML
+deploy/prod/               production plain YAML
+```
+
+Staging is the default. Change this line in `deploy.env` and push when production
+should receive the next build:
+
+```dotenv
+DEFAULT_DEPLOY_ENV=prod
+```
+
+Alternatively, start a GitLab pipeline with `DEPLOY_ENV=prod`; that variable
+overrides the default without changing the file. Accepted values are only
+`stag` and `prod`.
+
 Configure these masked CI/CD variables in the GitLab project:
 
 - `DOCKERHUB_USERNAME`: the Docker Hub username that owns `dockerboi99/he_k8s`.
@@ -41,9 +64,13 @@ docker push docker.io/dockerboi99/he_k8s:latest
 Argo CD watches the plain Kubernetes manifests under `deploy/k8s`. No Helm or
 Kustomize is used.
 
-`argocd/application.yaml` is only the one-time bootstrap manifest for a cluster
-administrator. If an Argo CD application already watches this GitLab repository
-and the `deploy/k8s` path, normal deployment requires only a Git push.
+The two files under `argocd/` are one-time bootstrap manifests for a cluster
+administrator. After the staging and production Argo applications exist, normal
+deployment requires only a Git push or a GitLab pipeline run.
+
+The supplied applications use separate namespaces in the same Kubernetes
+cluster. A cluster administrator can change `destination.server` in either Argo
+application if staging and production are separate clusters.
 
 GitHub remains a source/backup copy. The bootstrap manifest points Argo CD to
 the GitLab repository because that is where image promotion commits are made.
@@ -51,7 +78,7 @@ the GitLab repository because that is where image promotion commits are made.
 ## Use the toolbox
 
 ```bash
-kubectl -n network-tools exec -it deployment/network-tools -- bash
+kubectl -n network-tools-stag exec -it deployment/network-tools -- bash
 ```
 
 Examples inside the pod:

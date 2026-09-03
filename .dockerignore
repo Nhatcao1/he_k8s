@@ -4,4 +4,6 @@
 .DS_Store
 argocd
 deploy
+deploy.env
+environments
 README.md

@@ -5,7 +5,6 @@ stages:
 variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
-  TOOLBOX_IMAGE: docker.io/dockerboi99/he_k8s
 
 build-image:
   stage: build
@@ -13,21 +12,30 @@ build-image:
   services:
     - name: docker:27-dind
   rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
         - .dockerignore
         - .gitlab-ci.yml
         - Dockerfile
+        - deploy.env
+        - environments/*.env
   before_script:
     - test -n "$DOCKERHUB_USERNAME"
     - test -n "$DOCKERHUB_TOKEN"
     - echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
   script:
+    - . ./deploy.env
+    - ACTIVE_DEPLOY_ENV="${DEPLOY_ENV:-$DEFAULT_DEPLOY_ENV}"
+    - test "$ACTIVE_DEPLOY_ENV" = "stag" -o "$ACTIVE_DEPLOY_ENV" = "prod"
+    - . "./environments/${ACTIVE_DEPLOY_ENV}.env"
     - IMAGE_TAG="sha-${CI_COMMIT_SHORT_SHA}"
     - IMAGE_REF="${TOOLBOX_IMAGE}:${IMAGE_TAG}"
     - docker build --pull --tag "$IMAGE_REF" .
     - docker push "$IMAGE_REF"
     - echo "IMAGE_REF=$IMAGE_REF" > build.env
+    - echo "DEPLOY_MANIFEST=$DEPLOY_MANIFEST" >> build.env
+    - echo "ACTIVE_DEPLOY_ENV=$ACTIVE_DEPLOY_ENV" >> build.env
   artifacts:
     reports:
       dotenv: build.env
@@ -39,21 +47,24 @@ promote-image:
     - job: build-image
       artifacts: true
   rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
         - .dockerignore
         - .gitlab-ci.yml
         - Dockerfile
+        - deploy.env
+        - environments/*.env
   before_script:
     - apk add --no-cache git
   script:
-    - 'sed -i "s|^[[:space:]]*image: .*|          image: ${IMAGE_REF}|" deploy/k8s/deployment.yaml'
+    - 'sed -i "s|^[[:space:]]*image: .*|          image: ${IMAGE_REF}|" "$DEPLOY_MANIFEST"'
     - git config user.name "GitLab CI"
     - git config user.email "gitlab-ci@${CI_SERVER_HOST}"
-    - git add deploy/k8s/deployment.yaml
+    - git add "$DEPLOY_MANIFEST"
     - |
       if git diff --cached --quiet; then
-        echo "Deployment already uses ${IMAGE_REF}"
+        echo "${ACTIVE_DEPLOY_ENV} already uses ${IMAGE_REF}"
         exit 0
       fi
     - git commit -m "Deploy ${IMAGE_REF} [skip ci]"

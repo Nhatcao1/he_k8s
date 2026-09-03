@@ -1,19 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: network-tools-stag
+  name: network-tools-prod
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: http://source.cyberspace.vn/nhatcm1/he_k8s.git
     targetRevision: main
-    path: deploy/k8s
+    path: deploy/prod
     directory:
       recurse: true
   destination:
     server: https://kubernetes.default.svc
-    namespace: network-tools-stag
+    namespace: network-tools-prod
   syncPolicy:
     automated:
       prune: true
