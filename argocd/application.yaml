@@ -1,21 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: datalake-he
-  namespace: datalake-he
+  name: network-tools
+  namespace: argocd
 spec:
-  project: datalake
+  project: default
   source:
-    repoURL: http://source.cyberspace.vn/nhatcm1/he_k8s.git
+    repoURL: https://github.com/Nhatcao1/he_k8s.git
     targetRevision: main
     path: deploy/k8s
+    directory:
+      recurse: true
   destination:
     server: https://kubernetes.default.svc
-    namespace: datalake-he
+    namespace: network-tools
   syncPolicy:
     automated:
-      enabled: true
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
     retry:
       limit: 3
