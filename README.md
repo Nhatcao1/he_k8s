@@ -1,9 +1,9 @@
 # Network tools GitOps deployment
 
-This repository deploys a network troubleshooting DaemonSet through Argo CD.
-It runs one pod on every node, including tainted nodes, using each node's host
-network. The image includes `nc`, `curl`, `dig`, `nslookup`, `ping`, `ip`, `ss`,
-`telnet`, `traceroute`, `openssl`, `jq`, and `tcpdump`.
+This repository deploys one network troubleshooting pod through Argo CD using a
+standard Kubernetes Deployment. The image includes `nc`, `curl`, `dig`,
+`nslookup`, `ping`, `ip`, `ss`, `telnet`, `traceroute`, `openssl`, `jq`, and
+`tcpdump`.
 
 ## Automatic GitLab build and Argo CD deployment
 
@@ -23,8 +23,8 @@ Environment settings are separate:
 deploy.env                 default environment selector
 environments/stag.env      staging image and manifest settings
 environments/prod.env      production image and manifest settings
-deploy/k8s/daemonset.yaml  staging plain YAML
-deploy/prod/daemonset.yaml production plain YAML
+deploy/k8s/deployment.yaml  staging plain YAML
+deploy/prod/deployment.yaml production plain YAML
 ```
 
 Staging is the default. Change this line in `deploy.env` and push when production
@@ -78,19 +78,20 @@ the GitLab repository because that is where image promotion commits are made.
 
 ## Use the toolbox
 
-List the pod placed on each node:
+List the deployed pod:
 
 ```bash
 kubectl -n network-tools-stag get pods -l app=network-tools -o wide
 ```
 
-Open the pod running on the node you want to test:
+Open the pod:
 
 ```bash
 kubectl -n network-tools-stag exec -it <pod-name> -- bash
 ```
 
-Inside the pod, `NODE_NAME` identifies its Kubernetes node.
+Inside the pod, `NODE_NAME` identifies the Kubernetes node selected by the
+scheduler.
 
 Examples inside the pod:
 
