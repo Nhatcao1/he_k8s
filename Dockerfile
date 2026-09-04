@@ -9,6 +9,7 @@ RUN apk add --no-cache \
       iputils \
       jq \
       netcat-openbsd \
+      nmap \
       openssl \
       tcpdump \
       traceroute \
