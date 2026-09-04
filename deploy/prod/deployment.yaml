@@ -27,6 +27,11 @@ spec:
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_RAW
           env:
             - name: NODE_NAME
               valueFrom:
