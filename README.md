@@ -2,8 +2,8 @@
 
 This repository deploys one network troubleshooting pod through Argo CD using a
 standard Kubernetes Deployment. The image includes `nc`, `curl`, `dig`,
-`nslookup`, `ping`, `ip`, `ss`, `telnet`, `traceroute`, `nmap`, `openssl`,
-`jq`, and `tcpdump`. The container runs as non-root UID/GID `10001` for
+`nslookup`, `ping`, `ip`, `ss`, `telnet`, `traceroute`, `nmap`, `kcat`,
+`openssl`, `jq`, and `tcpdump`. The container runs as non-root UID/GID `10001` for
 restricted Kubernetes environments. The pod receives only the `NET_RAW` Linux
 capability needed by `ping`, TCP traceroute, and raw-socket diagnostics.
 
@@ -101,6 +101,7 @@ Examples inside the pod:
 ```bash
 nc -vz example.com 443
 nmap -sT -Pn -p 443 example.com
+kcat -b 10.211.144.162:8464 -L -m 5
 curl -v https://example.com
 dig example.com
 ping -c 4 10.0.0.1

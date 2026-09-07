@@ -8,6 +8,7 @@ RUN apk add --no-cache \
       iproute2 \
       iputils \
       jq \
+      kcat \
       netcat-openbsd \
       nmap \
       openssl \
