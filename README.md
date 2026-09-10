@@ -3,9 +3,10 @@
 This repository deploys one network troubleshooting pod through Argo CD using a
 standard Kubernetes Deployment. The image includes `nc`, `curl`, `dig`,
 `nslookup`, `ping`, `ip`, `ss`, `telnet`, `traceroute`, `nmap`, `kcat`,
-`openssl`, `jq`, and `tcpdump`. The container runs as non-root UID/GID `10001` for
-restricted Kubernetes environments. The pod receives only the `NET_RAW` Linux
-capability needed by `ping`, TCP traceroute, and raw-socket diagnostics.
+`hdfs dfs`, `kinit`, `openssl`, `jq`, and `tcpdump`. The container runs as
+non-root UID/GID `10001` for restricted Kubernetes environments. The pod
+receives only the `NET_RAW` Linux capability needed by `ping`, TCP traceroute,
+and raw-socket diagnostics.
 
 ## Automatic GitLab build and Argo CD deployment
 
@@ -109,3 +110,55 @@ traceroute example.com
 openssl s_client -connect example.com:443
 tcpdump -nn
 ```
+
+## Configure the HDFS client
+
+The image includes the Hadoop 3.4.3 client and Java 17. Hadoop configuration is
+read from `HADOOP_CONF_DIR=/etc/hadoop/conf`. The safest setup is to request the
+cluster's existing `core-site.xml` and `hdfs-site.xml` from the HDFS
+administrator and mount both files into that directory. This matters especially
+for HA nameservices, Kerberos, custom RPC ports, and vendor-specific settings.
+
+For a simple, non-HA and non-Kerberos HDFS cluster, the minimum
+`core-site.xml` is:
+
+```xml
+<?xml version="1.0"?>
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://namenode.example.internal:8020</value>
+  </property>
+</configuration>
+```
+
+Then run:
+
+```bash
+hdfs getconf -confKey fs.defaultFS
+hdfs dfs -ls /
+hdfs dfs -put /tmp/test.txt /tmp/test.txt
+hdfs dfs -cat /tmp/test.txt
+```
+
+For an HA cluster, do not replace the logical nameservice with a single
+NameNode IP. Its `hdfs-site.xml` normally defines `dfs.nameservices`, the HA
+NameNode IDs and RPC addresses, and
+`dfs.client.failover.proxy.provider.<nameservice>`. Copy the cluster-provided
+files so failover and address discovery work correctly.
+
+For a Kerberos-secured cluster, also mount the organization's `krb5.conf` at
+`/etc/krb5.conf` and a keytab as a Kubernetes Secret, then authenticate before
+using HDFS:
+
+```bash
+kinit -kt /etc/security/keytabs/client.keytab user@EXAMPLE.COM
+klist
+hdfs dfs -ls /
+```
+
+Do not commit `krb5.conf`, keytabs, passwords, or Hadoop credentials to this
+repository. HDFS clients contact the NameNode for metadata and then connect
+directly to DataNodes for file blocks. Network policy/firewalls must therefore
+allow DNS plus the NameNode RPC endpoint and the DataNode transfer endpoints;
+opening only port `8020` is usually insufficient for file reads and writes.
